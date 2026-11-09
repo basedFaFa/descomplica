@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17131f">
+  <meta name="description" content="Organize tarefas, hábitos, grupos, anotações e links em um só lugar.">
+  <title>Descomplica</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">D</span><div><strong>Descomplica</strong><small>um passo de cada vez</small></div></div>
+    <button class="icon-btn" id="installBtn" hidden aria-label="Instalar aplicativo">⇩</button>
+  </header>
+
+  <main>
+    <section class="capture card">
+      <label for="quickTask">Tirar da cabeça</label>
+      <div class="capture-row">
+        <input id="quickTask" maxlength="140" placeholder="O que você precisa lembrar?">
+        <button class="primary" id="addQuick">Adicionar</button>
+      </div>
+      <p class="hint">Depois você escolhe se é para hoje, depois ou um hábito.</p>
+    </section>
+
+    <nav class="tabs" aria-label="Navegação principal">
+      <button class="tab active" data-view="organize">Minha organização</button>
+      <button class="tab" data-view="groups">Meus grupos</button>
+    </nav>
+
+    <section id="organizeView" class="view">
+      <div class="section-head"><div><h1>Minha organização</h1><p>Tudo que está na sua cabeça, em um só lugar.</p></div></div>
+      <div class="filters" id="taskFilters">
+        <button class="filter active" data-filter="Todas">Todas</button>
+        <button class="filter" data-filter="Hoje">Hoje</button>
+        <button class="filter" data-filter="Depois">Depois</button>
+        <button class="filter" data-filter="Hábito">Hábitos</button>
+      </div>
+      <div id="allTasks" class="task-list"></div>
+      <div id="emptyTasks" class="empty" hidden>Nenhuma tarefa por aqui. Use “Tirar da cabeça” para começar.</div>
+    </section>
+
+    <section id="groupsView" class="view" hidden>
+      <div class="section-head"><div><h1>Meus grupos</h1><p>Separe sua vida por assuntos.</p></div><button class="primary small" id="newGroupBtn">+ Grupo</button></div>
+      <div id="groupTree" class="group-list"></div>
+      <div id="emptyGroups" class="empty" hidden>Você ainda não criou grupos.</div>
+      <section id="groupDetail" class="group-detail" hidden></section>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="bottom-item active" data-view="organize"><span>☷</span>Organização</button>
+    <button class="bottom-item" data-view="groups"><span>▦</span>Grupos</button>
+  </nav>
+
+  <dialog id="taskDialog">
+    <form method="dialog" id="taskForm">
+      <div class="dialog-head"><h2 id="taskDialogTitle">Nova tarefa</h2><button class="icon-btn close" value="cancel" aria-label="Fechar">×</button></div>
+      <label>Nome da tarefa<input id="taskName" maxlength="140" required placeholder="Ex.: Organizar documentos"></label>
+      <label>Categoria<select id="taskCategory"><option>Hoje</option><option>Depois</option><option>Hábito</option></select></label>
+      <label>Grupo<select id="taskGroup"><option value="">Sem grupo</option></select></label>
+      <div class="dialog-actions"><button class="secondary" value="cancel">Cancelar</button><button class="primary" id="saveTask" value="default">Salvar tarefa</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="groupDialog">
+    <form method="dialog" id="groupForm">
+      <div class="dialog-head"><h2>Novo grupo</h2><button class="icon-btn close" value="cancel">×</button></div>
+      <label>Nome do grupo<input id="groupName" maxlength="70" required placeholder="Ex.: Estudos"></label>
+      <label>Dentro de<select id="parentGroup"><option value="">Grupo principal</option></select></label>
+      <div class="dialog-actions"><button class="secondary" value="cancel">Cancelar</button><button class="primary" id="saveGroup" value="default">Criar grupo</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="confirmDialog">
+    <div class="confirm-content"><h2>Tem certeza?</h2><p id="confirmText">Essa ação não poderá ser desfeita.</p><div class="dialog-actions"><button class="secondary" id="cancelDelete">Não</button><button class="danger" id="confirmDelete">Sim, excluir</button></div></div>
+  </dialog>
+
+  <dialog id="noteDialog">
+    <form method="dialog" id="noteForm">
+      <div class="dialog-head"><h2>Nova anotação</h2><button class="icon-btn close" value="cancel">×</button></div>
+      <label>Título<input id="noteTitle" maxlength="90" placeholder="Título (opcional)"></label>
+      <label>Anotação<textarea id="noteBody" rows="5" required placeholder="Escreva aqui..."></textarea></label>
+      <div class="dialog-actions"><button class="secondary" value="cancel">Cancelar</button><button class="primary" id="saveNote" value="default">Salvar</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="linkDialog">
+    <form method="dialog" id="linkForm">
+      <div class="dialog-head"><h2>Salvar link ou vídeo</h2><button class="icon-btn close" value="cancel">×</button></div>
+      <label>Endereço do link<input id="linkUrl" type="url" required placeholder="https://..."></label>
+      <label>Nome para identificar<input id="linkTitle" maxlength="100" placeholder="Ex.: Vídeo para assistir"></label>
+      <p class="hint">O título pode ser preenchido manualmente. A busca automática do título será adicionada numa etapa com integração externa.</p>
+      <div class="dialog-actions"><button class="secondary" value="cancel">Cancelar</button><button class="primary" id="saveLink" value="default">Salvar link</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
