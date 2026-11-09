@@ -34,11 +34,22 @@
 
     <section id="organizeView" class="view">
       <div class="section-head"><div><h1>Minha organização</h1><p>Tudo que está na sua cabeça, em um só lugar.</p></div></div>
-      <div class="filters" id="taskFilters">
-        <button class="filter active" data-filter="Todas">Todas</button>
-        <button class="filter" data-filter="Hoje">Hoje</button>
-        <button class="filter" data-filter="Depois">Depois</button>
-        <button class="filter" data-filter="Hábito">Hábitos</button>
+      <div class="task-heading"><h2>Minhas tarefas</h2><button type="button" class="tiny-btn organize-categories-btn" id="organizeCategoriesBtn" aria-expanded="false">Organizar</button></div>
+      <section id="categoryEditor" class="category-editor" hidden aria-label="Organizar categorias">
+        <p class="category-editor-help">“Todas” fica fixa em primeiro. Escolha até três categorias para os primeiros lugares e use as setas para mudar a ordem.</p>
+        <div id="categoryManageList" class="category-manage-list"></div>
+        <div class="category-editor-actions">
+          <button type="button" class="secondary" id="cancelCategoryChanges">Cancelar</button>
+          <button type="button" class="primary" id="saveCategoryChanges">Salvar</button>
+        </div>
+        <p id="categoryEditorMessage" class="category-editor-message" role="status" aria-live="polite"></p>
+      </section>
+      <div class="filters" id="taskFilters" aria-label="Filtrar tarefas por categoria"></div>
+      <div class="category-create-row"><button type="button" class="tiny-btn add-category-btn" id="addCategoryBtn" aria-label="Adicionar categoria" title="Adicionar categoria">+</button></div>
+      <div id="newCategoryForm" class="new-category-form" hidden>
+        <label for="newCategoryName">Nova categoria</label>
+        <div class="new-category-controls"><input id="newCategoryName" maxlength="30" placeholder="Ex.: Urgente ou Prioridade"><button type="button" class="primary small" id="createCategoryBtn">Criar</button></div>
+        <p id="newCategoryError" class="category-editor-message" role="status"></p>
       </div>
       <div id="allTasks" class="task-list"></div>
       <div id="emptyTasks" class="empty" hidden>Nenhuma tarefa por aqui. Use “Tirar da cabeça” para começar.</div>
@@ -61,7 +72,7 @@
     <form method="dialog" id="taskForm">
       <div class="dialog-head"><h2 id="taskDialogTitle">Nova tarefa</h2><button class="icon-btn close" value="cancel" aria-label="Fechar">×</button></div>
       <label>Nome da tarefa<input id="taskName" maxlength="140" required placeholder="Ex.: Organizar documentos"></label>
-      <label>Categoria<select id="taskCategory"><option>Hoje</option><option>Depois</option><option>Hábito</option></select></label>
+      <label>Categoria<select id="taskCategory"></select></label>
       <label>Grupo<select id="taskGroup"><option value="">Sem grupo</option></select></label>
       <div class="dialog-actions"><button class="secondary" value="cancel">Cancelar</button><button class="primary" id="saveTask" value="default">Salvar tarefa</button></div>
     </form>

@@ -7,6 +7,19 @@ const starter=()=>({tasks:[
 ],groups:[{id:'religiao',name:'Religião',parentId:null}],notes:[],links:[]});
 let data;try{data=JSON.parse(localStorage.getItem(KEY))||starter()}catch{data=starter()}
 let currentView='organize',filter='Todas',selectedGroup=null,detailTab='Tarefas',pendingDelete=null;
+const DEFAULT_CATEGORIES=['Hoje','Depois','Hábito'];
+function ensureCategorySettings(){
+  if(!Array.isArray(data.categories)||!data.categories.length)data.categories=[...DEFAULT_CATEGORIES];
+  data.categories=[...new Set(data.categories.map(c=>String(c).trim()).filter(Boolean))];
+  // Preserve any category names already used by existing tasks.
+  data.tasks.forEach(t=>{if(t.category&&!data.categories.includes(t.category))data.categories.push(t.category)});
+  if(!data.categoryOrder||!Array.isArray(data.categoryOrder.pinned))data.categoryOrder={pinned:['Hoje','Depois','Hábito']};
+  const valid=[...new Set(data.categoryOrder.pinned.filter(c=>c==='Todas'||data.categories.includes(c)))];
+  data.categoryOrder.pinned=['Todas',...valid.filter(c=>c!=='Todas').slice(0,3)];
+  DEFAULT_CATEGORIES.forEach(c=>{if(!data.categories.includes(c))data.categories.push(c)});
+}
+ensureCategorySettings();
+let categoryDraft=null;
 function save(){localStorage.setItem(KEY,JSON.stringify(data))}
 function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200)}
@@ -15,10 +28,74 @@ function groupOptions(selected=''){return '<option value="">Sem grupo</option>'+
 function groupPath(id){let g=data.groups.find(x=>x.id===id),parts=[];while(g){parts.unshift(g.name);g=data.groups.find(x=>x.id===g.parentId)}return parts.join(' / ')}
 function switchView(v){currentView=v;$('#organizeView').hidden=v!=='organize';$('#groupsView').hidden=v!=='groups';$$('.tab,.bottom-item').forEach(b=>b.classList.toggle('active',b.dataset.view===v));if(v==='groups')renderGroups()}
 $$('.tab,.bottom-item').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.view)));
-function renderTasks(){const list=$('#allTasks'),items=data.tasks.filter(t=>filter==='Todas'||t.category===filter);list.innerHTML=items.map(taskHTML).join('');$('#emptyTasks').hidden=items.length>0;wireTaskRows(list)}
+function orderedCategories(){const pinned=data.categoryOrder.pinned.filter(c=>c==='Todas'||data.categories.includes(c));return [...pinned.filter(c=>c==='Todas'),...pinned.filter(c=>c!=='Todas'),...data.categories.filter(c=>!pinned.includes(c))]}
+function renderCategoryFilters(){
+  const el=$('#taskFilters');
+  el.innerHTML=orderedCategories().map(c=>`<button type="button" class="filter ${filter===c?'active':''}" data-filter="${esc(c)}">${esc(c==='Hábito'?'Hábitos':c)}</button>`).join('');
+  el.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;renderTasks()});
+  const select=$('#taskCategory'),old=select.value;
+  select.innerHTML=data.categories.map(c=>`<option value="${esc(c)}">${esc(c==='Hábito'?'Hábitos':c)}</option>`).join('');
+  select.value=data.categories.includes(old)?old:(data.categories.includes('Hoje')?'Hoje':data.categories[0]||'');
+}
+function renderTasks(){if(!data.categories.includes(filter)&&filter!=='Todas')filter='Todas';renderCategoryFilters();const list=$('#allTasks'),items=data.tasks.filter(t=>filter==='Todas'||t.category===filter);list.innerHTML=items.map(taskHTML).join('');$('#emptyTasks').hidden=items.length>0;wireTaskRows(list)}
 function taskHTML(t){return `<article class="task-row" data-task="${t.id}"><div class="task-main"><input class="task-check" type="checkbox" ${t.done?'checked':''} aria-label="Concluir tarefa"><span class="task-title ${t.done?'done':''}">${esc(t.name)}</span><span class="pill">${esc(t.category)}</span><div class="task-actions"><button class="tiny-btn expand" aria-label="Detalhes">${t.expanded?'⌃':'⌄'}</button><button class="tiny-btn delete-task" aria-label="Excluir">⌫</button></div></div>${t.expanded?`<div class="task-extra"><label>Grupo<select class="move-task">${groupOptions(t.groupId||'')}</select></label><div class="row-actions"><button class="secondary delete-task">Excluir tarefa</button></div></div>`:''}</article>`}
+function startCategoryEditing(){
+  categoryDraft={categories:[...data.categories],pinned:[...data.categoryOrder.pinned]};
+  $('#categoryEditor').hidden=false;$('#organizeCategoriesBtn').setAttribute('aria-expanded','true');
+  $('#organizeCategoriesBtn').textContent='Fechar';renderCategoryManager();
+}
+function closeCategoryEditing(){categoryDraft=null;$('#categoryEditor').hidden=true;$('#organizeCategoriesBtn').setAttribute('aria-expanded','false');$('#organizeCategoriesBtn').textContent='Organizar'}
+function renderCategoryManager(){
+  if(!categoryDraft)return;
+  const list=$('#categoryManageList');
+  list.innerHTML=`<div class="category-manage-row fixed"><span class="category-lock" aria-hidden="true">🔒</span><strong>Todas</strong><span class="category-fixed-label">Primeira · fixa</span></div>`+
+  categoryDraft.categories.map(c=>{
+    const isPinned=categoryDraft.pinned.includes(c),pos=categoryDraft.pinned.indexOf(c);
+    const count=categoryDraft.pinned.filter(x=>x!=='Todas').length;
+    return `<div class="category-manage-row" data-manage-category="${esc(c)}">
+      <label class="category-pin"><input type="checkbox" data-pin-category="${esc(c)}" ${isPinned?'checked':''} ${!isPinned&&count>=3?'disabled':''}><span>${esc(c==='Hábito'?'Hábitos':c)}</span></label>
+      <div class="category-order-controls">${isPinned?`<button type="button" class="tiny-btn" data-move-category="${esc(c)}" data-delta="-1" aria-label="Mover ${esc(c)} para cima" ${pos<=1?'disabled':''}>↑</button><button type="button" class="tiny-btn" data-move-category="${esc(c)}" data-delta="1" aria-label="Mover ${esc(c)} para baixo" ${pos===categoryDraft.pinned.length-1?'disabled':''}>↓</button>`:'<span class="category-not-pinned">Fora dos 4 primeiros</span>'}</div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('[data-pin-category]').forEach(input=>input.onchange=()=>{
+    const c=input.dataset.pinCategory;
+    if(input.checked){const n=categoryDraft.pinned.filter(x=>x!=='Todas').length;if(n>=3){input.checked=false;$('#categoryEditorMessage').textContent='Já existem três categorias além de Todas nos quatro primeiros lugares.';return}categoryDraft.pinned.push(c)}
+    else categoryDraft.pinned=categoryDraft.pinned.filter(x=>x!==c);
+    $('#categoryEditorMessage').textContent='';renderCategoryManager();
+  });
+  list.querySelectorAll('[data-move-category]').forEach(button=>button.onclick=()=>{
+    const c=button.dataset.moveCategory,delta=Number(button.dataset.delta),i=categoryDraft.pinned.indexOf(c),j=i+delta;
+    if(i<1||j<1||j>=categoryDraft.pinned.length)return;
+    [categoryDraft.pinned[i],categoryDraft.pinned[j]]=[categoryDraft.pinned[j],categoryDraft.pinned[i]];
+    renderCategoryManager();
+  });
+}
+$('#organizeCategoriesBtn').addEventListener('click',()=>{if(categoryDraft)closeCategoryEditing();else startCategoryEditing()});
+$('#cancelCategoryChanges').addEventListener('click',()=>{closeCategoryEditing();$('#categoryEditorMessage').textContent='Alterações canceladas.'});
+$('#saveCategoryChanges').addEventListener('click',()=>{
+  if(!categoryDraft)return;
+  data.categories=[...categoryDraft.categories];
+  data.categoryOrder={pinned:['Todas',...categoryDraft.pinned.filter(c=>c!=='Todas'&&data.categories.includes(c)).slice(0,3)]};
+  save();closeCategoryEditing();renderAll();toast('Organização das categorias salva');
+});
+$('#addCategoryBtn').addEventListener('click',()=>{
+  $('#newCategoryForm').hidden=!$('#newCategoryForm').hidden;
+  $('#newCategoryError').textContent='';
+  if(!$('#newCategoryForm').hidden)$('#newCategoryName').focus();
+});
+function createCategory(){
+  const name=$('#newCategoryName').value.trim();
+  if(!name){$('#newCategoryError').textContent='Digite um nome para a categoria.';return}
+  if(name.toLowerCase()==='todas'||data.categories.some(c=>c.toLowerCase()===name.toLowerCase())){$('#newCategoryError').textContent='Essa categoria já existe ou é reservada.';return}
+  data.categories.push(name);save();$('#newCategoryName').value='';$('#newCategoryForm').hidden=true;$('#newCategoryError').textContent='';
+  if(categoryDraft){categoryDraft.categories.push(name);renderCategoryManager()}
+  renderTasks();toast('Categoria criada');
+}
+$('#createCategoryBtn').addEventListener('click',createCategory);
+$('#newCategoryName').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();createCategory()}});
+
 function wireTaskRows(root){root.querySelectorAll('[data-task]').forEach(row=>{const id=row.dataset.task,t=data.tasks.find(x=>x.id===id);row.querySelector('.task-check').onchange=e=>{t.done=e.target.checked;save();renderAll()};row.querySelector('.expand').onclick=()=>{t.expanded=!t.expanded;renderAll()};row.querySelectorAll('.delete-task').forEach(b=>b.onclick=()=>askDelete('task',id,`Excluir a tarefa “${t.name}”?`));const sel=row.querySelector('.move-task');if(sel)sel.onchange=e=>{t.groupId||=null;t.groupId=e.target.value||null;save();renderAll();toast('Grupo atualizado') }})}
-$$('#taskFilters .filter').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;$$('#taskFilters .filter').forEach(x=>x.classList.toggle('active',x===b));renderTasks()});
+
 function openTask(groupId=null){$('#taskName').value='';$('#taskCategory').value='Hoje';$('#taskGroup').innerHTML=groupOptions(groupId||'');$('#taskDialogTitle').textContent='Nova tarefa';$('#taskDialog').showModal()}
 $('#addQuick').onclick=()=>{if(!$('#quickTask').value.trim())return;openTask(null);$('#taskName').value=$('#quickTask').value.trim();$('#quickTask').value=''};
 $('#quickTask').addEventListener('keydown',e=>{if(e.key==='Enter')$('#addQuick').click()});
@@ -51,7 +128,7 @@ $('#linkForm').onsubmit=e=>{if(e.submitter?.id!=='saveLink')return;e.preventDefa
 function askDelete(type,id,message){pendingDelete={type,id};$('#confirmText').textContent=message;$('#confirmDialog').showModal()}
 $('#cancelDelete').onclick=()=>{$('#confirmDialog').close();pendingDelete=null};
 $('#confirmDelete').onclick=()=>{if(!pendingDelete)return;const {type,id}=pendingDelete;if(type==='task')data.tasks=data.tasks.filter(x=>x.id!==id);if(type==='note')data.notes=data.notes.filter(x=>x.id!==id);if(type==='link')data.links=data.links.filter(x=>x.id!==id);if(type==='group'){const ids=new Set([id]);let changed=true;while(changed){changed=false;data.groups.forEach(g=>{if(ids.has(g.parentId)&&!ids.has(g.id)){ids.add(g.id);changed=true}})}data.groups=data.groups.filter(g=>!ids.has(g.id));data.tasks.forEach(t=>{if(ids.has(t.groupId))t.groupId=null});data.notes=data.notes.filter(n=>!ids.has(n.groupId));data.links=data.links.filter(l=>!ids.has(l.groupId));if(ids.has(selectedGroup))selectedGroup=null}save();$('#confirmDialog').close();pendingDelete=null;renderAll();toast('Item excluído')};
-function renderAll(){renderTasks();renderGroups();$('#taskGroup').innerHTML=groupOptions($('#taskGroup').value||'')}
+function renderAll(){renderTasks();renderGroups();$('#taskGroup').innerHTML=groupOptions($('#taskGroup').value||'');renderCategoryFilters()}
 renderAll();
 let deferredPrompt=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('#installBtn').hidden=false});
